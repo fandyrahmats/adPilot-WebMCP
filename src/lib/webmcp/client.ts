@@ -24,6 +24,26 @@ export function resolveModelContext(): WebMcpModelContext | null {
   return null;
 }
 
+/**
+ * Registers one tool with the browser. The document surface is the one the
+ * specification defines, so it is called directly here; navigator is only a
+ * fallback for older implementations.
+ */
+export async function registerWebMcpTool(
+  tool: WebMcpToolDescriptor,
+  options: WebMcpRegistrationOptions,
+): Promise<void> {
+  if (typeof document !== "undefined" && document.modelContext) {
+    await document.modelContext.registerTool(tool, options);
+    return;
+  }
+  if (typeof navigator !== "undefined" && navigator.modelContext) {
+    await navigator.modelContext.registerTool(tool, options);
+    return;
+  }
+  throw new Error("This browser does not expose a model context");
+}
+
 /** Tool execution is a thin call into the server handler for that tool. */
 export async function callTool(
   name: string,

@@ -9,6 +9,7 @@ import {
   callTool,
   describeTool,
   formatToolReply,
+  registerWebMcpTool,
   resolveModelContext,
 } from "@/lib/webmcp/client";
 
@@ -41,8 +42,6 @@ export function WebMcpRuntime() {
 
   useEffect(() => {
     if (surface !== "present") return;
-    const modelContext = resolveModelContext();
-    if (!modelContext) return;
 
     const controller = new AbortController();
     let cancelled = false;
@@ -51,7 +50,7 @@ export function WebMcpRuntime() {
       let count = 0;
       for (const contract of TOOL_CONTRACTS) {
         try {
-          await modelContext.registerTool(
+          await registerWebMcpTool(
             {
               name: contract.name,
               title: contract.title,

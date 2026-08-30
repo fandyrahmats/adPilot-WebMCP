@@ -34,7 +34,7 @@ Tool registration lives in
 It registers every tool on mount and unregisters them with an `AbortSignal`:
 
 ```ts
-await modelContext.registerTool(
+await document.modelContext.registerTool(
   {
     name: contract.name,
     description: describeTool(contract),
