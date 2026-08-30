@@ -5,7 +5,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "create_campaign",
     title: "Create campaign",
     description:
-      "Create a campaign. It is created paused so it cannot spend before a human activates it, which is why this call does not need approval.",
+      "Create a new campaign in this ad account. This tool is the only way to create a campaign: the dashboard has no creation form, so do not look for one in the interface. The campaign is created paused, so it cannot spend before a human activates it, which is why this call does not need approval.",
     kind: "write",
     requiresApproval: false,
     inputSchema: {
@@ -47,7 +47,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "create_ad_set",
     title: "Create ad set",
     description:
-      "Create an ad set inside an existing campaign, defining audience and daily budget. Created paused. An ad set cannot exist without a parent campaign.",
+      "Create an ad set inside an existing campaign, defining its audience and daily budget. This tool is the only way to create an ad set; the dashboard has no creation form. Created paused. An ad set cannot exist without a parent campaign, so call create_campaign first if you do not have one.",
     kind: "write",
     requiresApproval: false,
     inputSchema: {
@@ -89,7 +89,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "create_ad",
     title: "Create ad",
     description:
-      "Create an ad with its creative inside an existing ad set. Created paused. An ad cannot exist without a parent ad set.",
+      "Create an ad, including its creative content, inside an existing ad set. This tool is the only way to create an ad or write ad copy here; the dashboard has no creation form. Created paused. An ad cannot exist without a parent ad set, so call create_ad_set first if you do not have one.",
     kind: "write",
     requiresApproval: false,
     inputSchema: {
@@ -118,7 +118,7 @@ export const WRITE_TOOLS: ToolContract[] = [
   },
   {
     name: "update_ad_set_budget",
-    title: "Request budget change",
+    title: "Change ad set budget (approval required)",
     description:
       "Request a new daily budget for an ad set. This is a high impact write: it is recorded as an approval request and only changes spend after a human approves it. Include the reasoning, because the reviewer sees it.",
     kind: "write",
@@ -147,7 +147,7 @@ export const WRITE_TOOLS: ToolContract[] = [
   },
   {
     name: "update_entity_status",
-    title: "Request status change",
+    title: "Pause or activate (approval required)",
     description:
       "Request pausing or activating a campaign, ad set, or ad. This is a high impact write: it is held as an approval request because it starts or stops delivery.",
     kind: "write",
@@ -180,7 +180,7 @@ export const WRITE_TOOLS: ToolContract[] = [
   },
   {
     name: "apply_recommendation",
-    title: "Request recommendation",
+    title: "Apply a recommendation (approval required)",
     description:
       "Turn one of the recommendations from get_optimization_recommendations into an approval request, carrying its evidence and before and after values into the review queue. Nothing changes until a human approves it.",
     kind: "write",
