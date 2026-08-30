@@ -1,4 +1,4 @@
-import { getRecommendations } from "@/lib/ads-service";
+import { getPendingChanges, getRecommendations } from "@/lib/ads-service";
 import { formatCurrency } from "@/lib/format";
 import { adHref, adSetHref, campaignHref } from "@/lib/hrefs";
 import { getAdsProvider } from "@/lib/providers";
@@ -250,11 +250,35 @@ const applyRecommendation: ToolHandler = async (args) => {
   const recommendation = recommendations.find(
     (entry) => entry.id === recommendationId,
   );
+
+  // Name the valid ids, because recommendations are derived from live metrics
+  // and can legitimately disappear once performance changes.
   if (!recommendation) {
-    throw new ToolError("Recommendation not found or no longer relevant", 404);
+    const available = recommendations.map((entry) => entry.id);
+    throw new ToolError(
+      available.length === 0
+        ? `No recommendation "${recommendationId}" exists, and there are none right now. Call get_optimization_recommendations to check.`
+        : `No recommendation "${recommendationId}" exists. Available right now: ${available.join(", ")}.`,
+      404,
+    );
   }
+
   if (recommendation.operations.length === 0) {
     throw new ToolError("This recommendation has no executable operations");
+  }
+
+  // Asking twice must not queue the same change twice.
+  const openRequest = getPendingChanges().find(
+    (change) =>
+      change.sourceRecommendationId === recommendation.id &&
+      change.status === "pending",
+  );
+  if (openRequest) {
+    return {
+      summary: `Recommendation ${recommendationId} is already waiting for approval as ${openRequest.id}, so no duplicate was created. Approve or reject that one in the review queue.`,
+      data: { change: openRequest, applied: false, alreadyQueued: true },
+      awaitingApproval: true,
+    };
   }
 
   const change = requestChange({
