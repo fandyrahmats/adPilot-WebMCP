@@ -3,9 +3,14 @@ services:
     name: adpilot
     runtime: node
     plan: free
+    # Default region is oregon; Singapore is far closer to the intended audience.
+    region: singapore
+    branch: main
     buildCommand: npm ci && npm run build
     startCommand: npm run start
     healthCheckPath: /
+    # Demo state lives in process memory, so keep this at a single instance.
+    numInstances: 1
     envVars:
       # Next 16 requires Node 20.9+, and parts of the toolchain want 20.19+.
       - key: NODE_VERSION
