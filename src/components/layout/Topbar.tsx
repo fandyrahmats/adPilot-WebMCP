@@ -1,4 +1,5 @@
-import { CalendarRange, ChevronDown, FlaskConical } from "lucide-react";
+import { CalendarRange, ChevronDown, FlaskConical, LogOut } from "lucide-react";
+import { logoutAction } from "@/app/login/actions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { WebMcpRuntime } from "@/components/webmcp/WebMcpRuntime";
@@ -31,6 +32,11 @@ export async function Topbar() {
         </span>
         <WebMcpRuntime />
         <ThemeToggle />
+        <form action={logoutAction}>
+          <Button type="submit" variant="ghost" size="icon" aria-label="Sign out">
+            <LogOut />
+          </Button>
+        </form>
       </div>
     </header>
   );

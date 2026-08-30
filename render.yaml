@@ -19,3 +19,12 @@ services:
         value: "1"
       # ADS_PROVIDER is intentionally unset: the demo provider is the default,
       # and any other value fails loudly rather than faking a live connection.
+      # sync: false means Render prompts for these at Blueprint sync time and
+      # stores them only on the service; the values never live in this file
+      # or in git.
+      - key: DEMO_LOGIN_EMAIL
+        sync: false
+      - key: DEMO_LOGIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        sync: false

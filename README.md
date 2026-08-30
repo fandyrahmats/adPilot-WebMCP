@@ -87,10 +87,12 @@ lint toolchain expect 20.19+.
 
 ```bash
 npm install
+cp .env.example .env.local   # then edit the three values, see below
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. You will land on `/login`; sign in with the
+credentials you set in `.env.local`.
 
 ```bash
 npm run build   # production build
@@ -100,11 +102,19 @@ npm run lint
 
 ### Environment variables
 
-None are required. The demo provider is the default.
+The demo provider needs no configuration, but the login gate does. Without
+these three set, the app refuses to sign anyone in rather than falling back to
+a default.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ADS_PROVIDER` | `demo` | Which ads provider backs the workspace. Any value other than `demo` fails with an explicit error instead of silently serving demo data. |
+| `DEMO_LOGIN_EMAIL` | none | Email accepted at `/login`. Not committed anywhere; set your own. |
+| `DEMO_LOGIN_PASSWORD` | none | Password accepted at `/login`. Not committed anywhere; set your own. |
+| `SESSION_SECRET` | none | Random key used to sign the session cookie. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. |
+
+Judges testing the deployed instance should use the credentials given in the
+submission notes, not values from this file.
 
 ## Demo mode is real, the ad network is not
 
@@ -152,22 +162,34 @@ handlers run either way.
 
 Every tool is reachable without any browser flag or agent, which makes the
 behaviour easy to verify. WebMCP calls and these calls execute the same
-server-side handler:
+server-side handler, but the endpoint now sits behind the same session gate as
+the UI (see Security notes below). Sign in through the browser first, then copy
+the `adpilot_session` cookie value from devtools (Application/Storage → Cookies)
+and reuse it:
 
 ```bash
 # read
-curl -s -X POST http://localhost:3000/api/webmcp/get_goal_progress \
-  -H 'content-type: application/json' -d '{}'
+curl -s http://localhost:3000/api/webmcp/get_goal_progress \
+  -H 'content-type: application/json' -H 'cookie: adpilot_session=<paste value>' \
+  -X POST -d '{}'
 
 # gated write: recorded, not applied
-curl -s -X POST http://localhost:3000/api/webmcp/update_ad_set_budget \
-  -H 'content-type: application/json' \
-  -d '{"adSetId":"adset_students","dailyBudget":60000,"reason":"CPA above median"}'
+curl -s http://localhost:3000/api/webmcp/update_ad_set_budget \
+  -H 'content-type: application/json' -H 'cookie: adpilot_session=<paste value>' \
+  -X POST -d '{"adSetId":"adset_students","dailyBudget":60000,"reason":"CPA above median"}'
 
 # confirm the ad set budget did not move
-curl -s -X POST http://localhost:3000/api/webmcp/get_ad_set \
-  -H 'content-type: application/json' -d '{"adSetId":"adset_students"}'
+curl -s http://localhost:3000/api/webmcp/get_ad_set \
+  -H 'content-type: application/json' -H 'cookie: adpilot_session=<paste value>' \
+  -X POST -d '{"adSetId":"adset_students"}'
 ```
+
+The sign-in form itself is a React Server Action, not a plain HTML POST, so it
+cannot be driven with a bare `curl -d 'email=...'` call; grabbing the cookie
+after signing in through the browser is the reliable path. Without a valid
+session cookie every one of these calls returns `401` instead of running the
+handler, which is what closes off the approval endpoint from anonymous callers
+on the public deployment.
 
 Then open `/review`, approve the held change, and read the ad set again. Only
 now does the budget change. The decision is recorded in **Agent Activity** with
@@ -175,6 +197,7 @@ now does the budget change. The decision is recorded in **Agent Activity** with
 
 ### Suggested demo path
 
+0. **Sign in** at `/login` with the demo credentials.
 1. **Overview** - goal progress, KPIs, campaign table.
 2. **Campaigns** - drill down campaign to ad set to ad.
 3. **Insights** - spend allocation and the creative whose click-through rate is decaying.
@@ -198,15 +221,28 @@ would not share it.
 
 ## Security notes
 
+- Every route except `/login` is gated in [`src/proxy.ts`](src/proxy.ts):
+  page requests without a valid session redirect to `/login`, and API/tool
+  requests get a `401` instead of running the handler. This is what stops an
+  anonymous caller from reaching `/review` or `/api/webmcp/*` directly, which
+  was previously possible and is the reason the gate exists.
+- The session is a signed, revocable token (see
+  [`src/lib/server/auth.ts`](src/lib/server/auth.ts)): a random id, an HMAC
+  signature over that id (Web Crypto, `SESSION_SECRET`), and a server-side
+  active-session set. Signing off the active set means signing out actually
+  ends the session instead of leaving a still-valid signed cookie until it
+  expires.
+- Credentials are read only from `DEMO_LOGIN_EMAIL` / `DEMO_LOGIN_PASSWORD` at
+  request time and compared with a constant-time check. They are never
+  hardcoded, logged, or rendered into any page, including `/login` itself.
 - Tool handlers execute server side. Identifiers are resolved against the
   session's own account, so a caller can name a child entity but cannot assert
   which account or parent it belongs to.
-- The tool endpoint is currently unauthenticated, which is what makes the curl
-  testing path above possible. On a public deployment this means anyone who
-  finds the URL can call the write tools. That is acceptable for a disposable
-  demo account holding synthetic data, and it is not suitable for real ad
-  accounts. Adding session auth is the next step before any real provider.
-- No secrets are required or committed.
+- This is one shared login for the whole demo account, not a multi-user
+  identity system, which matches the scope of a single-instance hackathon
+  deployment. It is not a substitute for per-user auth on a real ad account.
+- No secrets are committed. `.env.local` is gitignored; only `.env.example`
+  (placeholder values) is tracked.
 
 ## Project structure
 
