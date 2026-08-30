@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: adpilot
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      # Next 16 requires Node 20.9+, and parts of the toolchain want 20.19+.
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      # ADS_PROVIDER is intentionally unset: the demo provider is the default,
+      # and any other value fails loudly rather than faking a live connection.

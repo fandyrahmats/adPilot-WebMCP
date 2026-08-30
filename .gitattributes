@@ -1,0 +1,17 @@
+# Normalize line endings. Authored on Windows, built on Linux (Render), so
+# everything is stored with LF in the repository.
+* text=auto eol=lf
+
+# Lockfile is generated; keep diffs collapsed in review UIs.
+package-lock.json linguist-generated=true -diff
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
