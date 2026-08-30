@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
-import { PlugZap, Unplug } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Loader, PlugZap, Unplug } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { TOOL_CONTRACTS } from "@/lib/webmcp/contracts";
 import {
@@ -32,13 +32,16 @@ function getServerSnapshot(): Surface {
  * Registers every AdPilot tool with the browser's model context on mount and
  * unregisters them on unmount through an AbortSignal.
  *
- * Writes refresh the router afterwards, so the server rendered dashboard shows
- * the state the tool call actually produced.
+ * After each call the workspace follows the agent: it navigates to the page the
+ * call concerned and refreshes server data, so the human and the agent are
+ * always looking at the same thing.
  */
 export function WebMcpRuntime() {
   const router = useRouter();
+  const pathname = usePathname();
   const surface = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [registered, setRegistered] = useState(0);
+  const [runningTool, setRunningTool] = useState<string | null>(null);
 
   useEffect(() => {
     if (surface !== "present") return;
@@ -61,15 +64,25 @@ export function WebMcpRuntime() {
                 untrustedContentHint: false,
               },
               execute: async (args, context) => {
-                const response = await callTool(
-                  contract.name,
-                  args ?? {},
-                  context?.signal,
-                );
-                if (contract.kind === "write" && response.ok) {
-                  router.refresh();
+                setRunningTool(contract.name);
+                try {
+                  const response = await callTool(
+                    contract.name,
+                    args ?? {},
+                    context?.signal,
+                  );
+
+                  // Move the human to whatever the agent just touched.
+                  if (response.ok && response.uiHref && response.uiHref !== pathname) {
+                    router.push(response.uiHref);
+                  } else if (response.ok) {
+                    router.refresh();
+                  }
+
+                  return formatToolReply(response);
+                } finally {
+                  setRunningTool(null);
                 }
-                return formatToolReply(response);
               },
             },
             { signal: controller.signal },
@@ -88,7 +101,7 @@ export function WebMcpRuntime() {
       cancelled = true;
       controller.abort();
     };
-  }, [surface, router]);
+  }, [surface, router, pathname]);
 
   if (surface === "server") return null;
 
@@ -104,12 +117,19 @@ export function WebMcpRuntime() {
     );
   }
 
+  if (runningTool) {
+    return (
+      <Badge tone="accent" className="font-mono" title="A tool is executing now">
+        <Loader className="animate-spin" />
+        {runningTool}
+      </Badge>
+    );
+  }
+
   return (
     <Badge tone="positive" title="Tools registered for this page">
       <PlugZap />
-      {registered === 0
-        ? "Registering tools"
-        : `${registered} WebMCP tools`}
+      {registered === 0 ? "Registering tools" : `${registered} WebMCP tools`}
     </Badge>
   );
 }

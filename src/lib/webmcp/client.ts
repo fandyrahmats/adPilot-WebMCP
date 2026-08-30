@@ -5,6 +5,8 @@ export interface ToolCallResponse {
   ok: boolean;
   summary: string;
   awaitingApproval?: boolean;
+  /** Page the call concerns, so the UI can follow the agent. */
+  uiHref?: string;
   data?: unknown;
   error?: string;
 }

@@ -1,6 +1,6 @@
 import { REFERENCE_DATE, REFERENCE_TIMESTAMP } from "@/lib/demo/series";
 import { formatCurrency, type MetricFormat } from "@/lib/format";
-import { adSetHref, campaignHref, adHref } from "@/lib/hrefs";
+import { adHref, adSetHref, campaignHref } from "@/lib/hrefs";
 import {
   accountTotals,
   adSetDaily,

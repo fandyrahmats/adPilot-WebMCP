@@ -19,6 +19,7 @@ export interface ToolRun {
     ok: boolean;
     summary: string;
     awaitingApproval?: boolean;
+    uiHref?: string;
     data?: unknown;
     error?: string;
   };
@@ -88,6 +89,7 @@ export async function runTool(name: string, args: ToolArgs): Promise<ToolRun> {
         ok: true,
         summary: result.summary,
         awaitingApproval: result.awaitingApproval ?? false,
+        uiHref: result.uiHref,
         data: result.data,
       },
     };

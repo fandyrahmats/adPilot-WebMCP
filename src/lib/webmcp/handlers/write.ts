@@ -39,6 +39,7 @@ const createCampaign: ToolHandler = async (args) => {
 
   return {
     summary: `Created campaign "${name}" (${campaign.id}) as paused with a ${budgetPeriod} budget of ${formatCurrency(budgetAmount)}. Activating it needs approval.`,
+    uiHref: campaignHref(campaign.id),
     data: {
       campaign: { ...campaign, adSets: [] },
       href: campaignHref(campaign.id),
@@ -73,6 +74,7 @@ const createAdSet: ToolHandler = async (args) => {
 
   return {
     summary: `Created ad set "${adSet.name}" (${adSet.id}) under ${campaign.name} as paused with a daily budget of ${formatCurrency(adSet.budget.amount)}.`,
+    uiHref: adSetHref(campaign.id, adSet.id),
     data: {
       adSet: { ...adSet, ads: [] },
       href: adSetHref(campaign.id, adSet.id),
@@ -92,6 +94,7 @@ const createAd: ToolHandler = async (args) => {
 
   return {
     summary: `Created ad "${ad.name}" (${ad.id}) under ${adSet.name} as paused. It has no delivery data until it runs.`,
+    uiHref: adHref(campaign.id, adSet.id, ad.id),
     data: { ad, href: adHref(campaign.id, adSet.id, ad.id) },
   };
 };
@@ -137,6 +140,8 @@ const updateAdSetBudget: ToolHandler = async (args) => {
 
   return {
     summary: `Budget change queued for approval as ${change.id}. ${adSet.name} still runs at ${formatCurrency(adSet.budget.amount)} per day until a person approves it.`,
+    // Send the human to the queue, since the decision is now theirs.
+    uiHref: "/review",
     data: { change, applied: false },
     awaitingApproval: true,
   };
@@ -239,6 +244,7 @@ const updateEntityStatus: ToolHandler = async (args) => {
 
   return {
     summary: `Status change queued for approval as ${change.id}. ${target.name} remains ${target.current} until a person approves it.`,
+    uiHref: "/review",
     data: { change, applied: false },
     awaitingApproval: true,
   };
@@ -276,6 +282,7 @@ const applyRecommendation: ToolHandler = async (args) => {
   if (openRequest) {
     return {
       summary: `Recommendation ${recommendationId} is already waiting for approval as ${openRequest.id}, so no duplicate was created. Approve or reject that one in the review queue.`,
+      uiHref: "/review",
       data: { change: openRequest, applied: false, alreadyQueued: true },
       awaitingApproval: true,
     };
@@ -298,6 +305,7 @@ const applyRecommendation: ToolHandler = async (args) => {
 
   return {
     summary: `Recommendation ${recommendationId} queued for approval as ${change.id}. Nothing has changed yet.`,
+    uiHref: "/review",
     data: { change, applied: false },
     awaitingApproval: true,
   };

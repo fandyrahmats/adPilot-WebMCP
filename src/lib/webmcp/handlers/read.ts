@@ -21,6 +21,7 @@ import {
   deriveMetrics,
   effectiveStatus,
 } from "@/lib/metrics";
+import { adHref, adSetHref, campaignHref } from "@/lib/hrefs";
 import { getAdsProvider } from "@/lib/providers";
 import {
   optionalInteger,
@@ -90,6 +91,7 @@ const listCampaignsTool: ToolHandler = async () => {
   }));
   return {
     summary: `${campaigns.length} campaigns: ${campaigns.map((entry) => `${entry.name} (${entry.status})`).join(", ")}.`,
+    uiHref: "/campaigns",
     data: { campaigns },
   };
 };
@@ -102,6 +104,7 @@ const getCampaignTool: ToolHandler = async (args) => {
 
   return {
     summary: `${campaign.name} is ${campaign.status} with ${campaign.adSets.length} ad sets.`,
+    uiHref: campaignHref(campaign.id),
     data: {
       id: campaign.id,
       name: campaign.name,
@@ -131,6 +134,7 @@ const getAdSetTool: ToolHandler = async (args) => {
 
   return {
     summary: `${adSet.name} in ${campaign.name} is ${adSet.status} on a daily budget of ${adSet.budget.amount}.`,
+    uiHref: adSetHref(campaign.id, adSet.id),
     data: {
       id: adSet.id,
       name: adSet.name,
@@ -162,6 +166,7 @@ const getAdTool: ToolHandler = async (args) => {
 
   return {
     summary: `${ad.name} is ${ad.status}, a ${ad.creative.format} creative headlined "${ad.creative.headline}".`,
+    uiHref: adHref(campaign.id, adSet.id, ad.id),
     data: {
       id: ad.id,
       name: ad.name,
@@ -234,6 +239,7 @@ const getCreativePerformanceTool: ToolHandler = async () => {
   }));
   return {
     summary: `${creatives.length} creatives ranked by conversions. Top: ${creatives[0]?.name ?? "none"}.`,
+    uiHref: "/insights",
     data: { creatives },
   };
 };
@@ -245,6 +251,7 @@ const detectAnomaliesTool: ToolHandler = async () => {
       anomalies.length === 0
         ? "No anomalies detected in active ad sets or ads."
         : `${anomalies.length} anomalies: ${anomalies.map((entry) => `${entry.targetName} (${entry.headline})`).join("; ")}.`,
+    uiHref: "/insights",
     data: { anomalies },
   };
 };
@@ -256,6 +263,7 @@ const getRecommendationsTool: ToolHandler = async () => {
       recommendations.length === 0
         ? "No recommendations right now."
         : `${recommendations.length} recommendations, highest impact first: ${recommendations.map((entry) => entry.id).join(", ")}.`,
+    uiHref: "/review",
     data: { recommendations },
   };
 };
@@ -268,6 +276,7 @@ const listPendingChangesTool: ToolHandler = async () => {
       changes.length === 0
         ? "No change requests have been raised yet."
         : `${waiting.length} awaiting approval out of ${changes.length} total requests.`,
+    uiHref: "/review",
     data: { changes },
   };
 };
@@ -286,6 +295,7 @@ const listExecutionsTool: ToolHandler = async (args) => {
   const executions = getToolExecutions().slice(0, limit);
   return {
     summary: `${executions.length} most recent tool executions.`,
+    uiHref: "/activity",
     data: { executions },
   };
 };
