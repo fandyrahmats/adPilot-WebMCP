@@ -123,21 +123,36 @@ demo after it spins down.
 
 ## Testing the WebMCP tools
 
-### Option A: a WebMCP capable browser
+No browser enables WebMCP by default yet, so start by confirming registration:
+the top bar reports **"20 WebMCP tools"** once every tool registers, and
+**"WebMCP not available"** when the browser exposes no model context. It never
+claims tools are registered when they are not.
 
-No browser enables WebMCP by default yet. In Chrome 146 or newer, open
-`chrome://flags/#enable-webmcp-testing`, enable it, relaunch, then load the app
-and connect an agent that can list and call page tools. ChatGPT's in-app browser
-also exposes the surface.
+### Option A: Chrome with a WebMCP client (verified end to end)
 
-The top bar reports what it found: **"20 WebMCP tools"** once registration
-succeeds, or **"WebMCP not available"** when the browser exposes no model
-context. It never claims tools are registered when they are not.
+Chrome 149 or newer, enable `chrome://flags/#enable-webmcp-testing`, relaunch,
+open the app, then drive the tools with a client that can list and call page
+tools. This is the path the project was built and tested against, including
+multi-step runs that read the account, built a campaign hierarchy, and pushed an
+optimization into the approval queue.
 
-### Option B: call the tools directly over HTTP
+### Option B: ChatGPT desktop app, built-in browser
 
-Every tool is reachable without a WebMCP browser, which makes the behaviour easy
-to verify:
+Open the built-in browser and load the app. The address-bar arrow lists the
+tools, split into read and write from each tool's `readOnlyHint` annotation.
+
+Tool discovery is confirmed on this surface. Invocation depends on the account
+and the surface in use: at the time of writing, a build routed the request into
+Work mode, which reported that its WebMCP connection was unavailable
+(`webmcp_list_tools` unsupported), so no tool ran. If that happens, use Option A
+or Option C. Nothing about it is specific to this app, and the same server-side
+handlers run either way.
+
+### Option C: call the tools directly over HTTP
+
+Every tool is reachable without any browser flag or agent, which makes the
+behaviour easy to verify. WebMCP calls and these calls execute the same
+server-side handler:
 
 ```bash
 # read
