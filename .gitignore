@@ -1,9 +1,17 @@
 # ---------------------------------------------------------------------------
 # AdPilot — ignore rules
 #
-# Tracked on purpose: package-lock.json (Render runs `npm ci`), .kiro/steering
-# (project conventions), docs/ (PRD + rule snapshot), LICENSE, render.yaml.
+# Tracked on purpose: package-lock.json (Render runs `npm ci`), LICENSE,
+# render.yaml, README.md, and everything under src/.
+#
+# Deliberately NOT tracked: internal planning material. The PRD, the rule
+# snapshot, and the agent steering files are working notes, not part of the
+# shipped product, and they are not required by the submission.
 # ---------------------------------------------------------------------------
+
+# Internal planning material and IDE agent configuration
+/docs/
+/.kiro/
 
 # Dependencies
 /node_modules
