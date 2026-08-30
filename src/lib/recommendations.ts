@@ -10,6 +10,18 @@ import type { AdSet, Campaign, Recommendation } from "@/types/ads";
 
 const REALLOCATION_STEP = 80_000;
 
+/**
+ * The complete set of recommendation identifiers this application can produce.
+ * Exported so the tool schema can constrain callers to real values instead of
+ * letting them guess, while the handler still checks whether one is currently
+ * available.
+ */
+export const RECOMMENDATION_IDS = [
+  "rec_reallocate_budget",
+  "rec_refresh_creative",
+  "rec_scale_winner",
+] as const;
+
 interface RankedAdSet {
   campaign: Campaign;
   adSet: AdSet;
@@ -55,7 +67,7 @@ function buildReallocation(ranked: RankedAdSet[]): Recommendation | null {
   const weeklyGain = Math.floor((shift * 7) / best.metrics.cpa);
 
   return {
-    id: "rec_reallocate_budget",
+    id: RECOMMENDATION_IDS[0],
     title: `Shift ${formatCurrency(shift)}/day from ${worst.adSet.name} to ${best.adSet.name}`,
     rationale:
       "Budget is sitting in the highest-cost ad set while a cheaper one is capped.",
@@ -138,7 +150,7 @@ function buildCreativeRefresh(campaigns: Campaign[]): Recommendation | null {
       : `Cost per conversion moved ${worst.cpaDelta.direction === "up" ? "up" : "down"} ${formatPercent(Math.abs(worst.cpaDelta.changePct))} over the same window.`;
 
   return {
-    id: "rec_refresh_creative",
+    id: RECOMMENDATION_IDS[1],
     title: `Pause ${worst.ad.name} and rotate in a fresh creative`,
     rationale: "Click-through rate is decaying while cost per result climbs.",
     level: "ad",
@@ -185,7 +197,7 @@ function buildScaleWinner(ranked: RankedAdSet[]): Recommendation | null {
   const increase = Math.round(budget * 0.2);
 
   return {
-    id: "rec_scale_winner",
+    id: RECOMMENDATION_IDS[2],
     title: `Raise ${best.adSet.name} daily budget by 20%`,
     rationale: "The strongest ad set is budget constrained late in the day.",
     level: "ad_set",

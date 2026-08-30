@@ -1,3 +1,4 @@
+import { RECOMMENDATION_IDS } from "@/lib/recommendations";
 import type { ToolContract } from "./types";
 
 export const WRITE_TOOLS: ToolContract[] = [
@@ -191,7 +192,8 @@ export const WRITE_TOOLS: ToolContract[] = [
         recommendationId: {
           type: "string",
           description:
-            "Identifier from get_optimization_recommendations, such as rec_reallocate_budget.",
+            "Identifier from get_optimization_recommendations. Call that tool first, because not every recommendation is available at all times.",
+          enum: RECOMMENDATION_IDS,
         },
       },
       required: ["recommendationId"],
