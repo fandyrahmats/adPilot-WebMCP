@@ -6,7 +6,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "create_campaign",
     title: "Create campaign",
     description:
-      "Create a new campaign in this ad account. This tool is the only way to create a campaign: the dashboard has no creation form, so do not look for one in the interface. The campaign is created paused, so it cannot spend before a human activates it, which is why this call does not need approval.",
+      "Create a new campaign in this ad account. The dashboard also has an Add campaign form that calls this same tool, so either path produces identical results. The campaign is created paused, so it cannot spend before a human activates it, which is why this call does not need approval.",
     kind: "write",
     requiresApproval: false,
     inputSchema: {
@@ -48,7 +48,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "create_ad_set",
     title: "Create ad set",
     description:
-      "Create an ad set inside an existing campaign, defining its audience and daily budget. This tool is the only way to create an ad set; the dashboard has no creation form. Created paused. An ad set cannot exist without a parent campaign, so call create_campaign first if you do not have one.",
+      "Create an ad set inside an existing campaign, defining its audience and daily budget. The dashboard also has an Add ad set form on the campaign page that calls this same tool. Created paused. An ad set cannot exist without a parent campaign, so call create_campaign first if you do not have one.",
     kind: "write",
     requiresApproval: false,
     inputSchema: {
@@ -72,6 +72,11 @@ export const WRITE_TOOLS: ToolContract[] = [
           type: "string",
           description: "Age range such as 25-34.",
         },
+        gender: {
+          type: "string",
+          description: "Gender targeting for this ad set.",
+          enum: ["all", "male", "female"],
+        },
         locations: {
           type: "string",
           description: "Comma separated list of locations.",
@@ -90,7 +95,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "create_ad",
     title: "Create ad",
     description:
-      "Create an ad, including its creative content, inside an existing ad set. This tool is the only way to create an ad or write ad copy here; the dashboard has no creation form. Created paused. An ad cannot exist without a parent ad set, so call create_ad_set first if you do not have one.",
+      "Create an ad, including its creative content, inside an existing ad set. The dashboard also has an Add ad form on the ad set page that calls this same tool. Created paused. An ad cannot exist without a parent ad set, so call create_ad_set first if you do not have one.",
     kind: "write",
     requiresApproval: false,
     inputSchema: {
@@ -108,9 +113,17 @@ export const WRITE_TOOLS: ToolContract[] = [
           description: "Headline shown to the audience.",
         },
         body: { type: "string", description: "Body copy shown to the audience." },
+        description: {
+          type: "string",
+          description: "Short line shown alongside the call to action link.",
+        },
         callToAction: {
           type: "string",
           description: "Call to action label, such as Enroll now.",
+        },
+        destinationUrl: {
+          type: "string",
+          description: "Where the call to action link sends people.",
         },
       },
       required: ["adSetId", "name", "format", "headline", "body"],
@@ -121,7 +134,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "update_ad_set_budget",
     title: "Change ad set budget (approval required)",
     description:
-      "Request a new daily budget for an ad set. This is a high impact write: it is recorded as an approval request and only changes spend after a human approves it. Include the reasoning, because the reviewer sees it.",
+      "Request a new daily budget for an ad set. Called by you, this is a high impact write: it is recorded as an approval request and changes nothing until a person approves it in the review queue. Include the reasoning, because the reviewer reads it. The same control exists in the dashboard and applies straight away when a person uses it themselves, since they are the approver; that asymmetry is deliberate, so do not expect your own call to take effect.",
     kind: "write",
     requiresApproval: true,
     inputSchema: {
@@ -150,7 +163,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "update_entity_status",
     title: "Pause or activate (approval required)",
     description:
-      "Request pausing or activating a campaign, ad set, or ad. This is a high impact write: it is held as an approval request because it starts or stops delivery.",
+      "Request pausing or activating a campaign, ad set, or ad. Called by you, this is held as an approval request and delivery does not start or stop until a person approves it, so never report the entity as paused or active on the strength of this call alone; read it back if you need to be sure. The equivalent dashboard control applies immediately when a person clicks it themselves, because they are the approver.",
     kind: "write",
     requiresApproval: true,
     inputSchema: {
@@ -183,7 +196,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "apply_recommendation",
     title: "Apply a recommendation (approval required)",
     description:
-      "Turn one of the recommendations from get_optimization_recommendations into an approval request, carrying its evidence and before and after values into the review queue. Nothing changes until a human approves it.",
+      "Turn one of the recommendations from get_optimization_recommendations into an approval request, carrying its evidence and before and after values into the review queue. Called by you, nothing changes until a person approves it. A person applying the same recommendation from the dashboard does not wait, because they are the approver.",
     kind: "write",
     requiresApproval: true,
     inputSchema: {

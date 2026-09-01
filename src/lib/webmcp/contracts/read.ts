@@ -62,7 +62,7 @@ export const READ_TOOLS: ToolContract[] = [
     name: "get_ad_set",
     title: "Read ad set",
     description:
-      "Get one ad set with its audience, placements, budget, optimization goal, and the ads inside it.",
+      "Get one ad set with its budget, placements, bid strategy, optimization goal, and the ads inside it. The audience covers its name, estimated reach, age range, gender targeting, locations, and interests.",
     kind: "read",
     requiresApproval: false,
     inputSchema: {
@@ -81,7 +81,7 @@ export const READ_TOOLS: ToolContract[] = [
     name: "get_ad",
     title: "Read ad",
     description:
-      "Get one ad with its creative content and performance. Use it before proposing a creative change so the reasoning refers to the real headline and format.",
+      "Get one ad with its performance and full creative: format, headline, primary text, description, call to action, and destination URL. Use it before proposing a creative change so the reasoning refers to the real copy rather than a guess.",
     kind: "read",
     requiresApproval: false,
     inputSchema: {

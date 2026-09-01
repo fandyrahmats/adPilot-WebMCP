@@ -71,8 +71,52 @@ async function applyOperation(operation: ChangeOperation): Promise<void> {
 }
 
 /**
- * The only path that mutates spend or delivery. Reached from a human approval,
- * never from a tool handler.
+ * Applies a high impact write at once and records it as already decided.
+ *
+ * This is the path for a change the person in the dashboard asked for
+ * themselves. The approval queue exists to separate whoever proposes a change
+ * from whoever decides on it, which is what makes the review meaningful. When
+ * the requester is already the approver that separation does not exist, so
+ * sending them to /review to sign off on their own click would be ceremony
+ * rather than oversight.
+ *
+ * The change is still written to the same log an approved agent request lands
+ * in, so the audit trail stays complete and shows who asked for what. It is
+ * recorded only after the provider accepts every operation, so a failed apply
+ * is never stored as done.
+ */
+export async function applyChangeNow(
+  request: ChangeRequest,
+): Promise<PendingChange> {
+  const decidedAt = new Date().toISOString();
+  const change: PendingChange = {
+    id: nextId("chg"),
+    ...request,
+    requestedAt: decidedAt,
+    status: "approved",
+    decidedAt,
+  };
+
+  try {
+    for (const operation of change.operations) {
+      await applyOperation(operation);
+    }
+  } catch (error) {
+    throw new ChangeError(
+      error instanceof ProviderError
+        ? `Provider rejected the change: ${error.message}`
+        : `Could not apply ${change.summary}`,
+    );
+  }
+
+  getStore().pendingChanges = [change, ...getStore().pendingChanges];
+  return change;
+}
+
+/**
+ * Applies a change an agent asked for, after a person approved it in the
+ * review queue. An agent has no path to this function: approval is not
+ * exposed as a tool.
  */
 export async function approveChange(changeId: string): Promise<PendingChange> {
   const change = getStore().pendingChanges.find((entry) => entry.id === changeId);

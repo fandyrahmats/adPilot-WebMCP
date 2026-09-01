@@ -52,8 +52,13 @@ export interface Creative {
   name: string;
   format: CreativeFormat;
   headline: string;
+  /** Primary text shown above the media. */
   body: string;
+  /** Short line shown alongside the call to action link. */
+  description: string;
   callToAction: string;
+  /** Where the call to action sends people. */
+  destinationUrl: string;
   /** Accent used by the placeholder preview surface. */
   accent: "blue" | "violet" | "amber" | "emerald" | "rose";
 }
@@ -68,11 +73,14 @@ export interface Ad {
   daily: DailyPoint[];
 }
 
+export type Gender = "all" | "male" | "female";
+
 export interface Audience {
   name: string;
   sizeEstimate: number;
   locations: string[];
   ageRange: string;
+  gender: Gender;
   interests: string[];
 }
 
@@ -179,6 +187,16 @@ export interface PerformanceRow {
   budgetInherited: boolean;
   metrics: DerivedMetrics;
   trend: number[];
+}
+
+/**
+ * A performance row that also carries its own rows one level down, so a
+ * single table can render the full Campaign -> Ad Set -> Ad hierarchy with
+ * expand and collapse instead of three separate pages.
+ */
+export interface TreeRow extends PerformanceRow {
+  level: HierarchyLevel;
+  children?: TreeRow[];
 }
 
 /** Concrete mutation applied to the account once a human approves it. */

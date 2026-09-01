@@ -31,13 +31,14 @@ function logExecution(
   status: ToolExecution["status"],
   summary: string,
   startedAt: number,
+  actor: "agent" | "human",
 ): void {
   recordExecution({
     id: `exec_${Date.now().toString(36)}`,
     toolName: tool,
     kind,
     status,
-    actor: "agent",
+    actor,
     summary,
     startedAt: new Date(startedAt).toISOString(),
     durationMs: Math.max(1, Date.now() - startedAt),
@@ -48,8 +49,17 @@ function logExecution(
  * Single entry point for every tool call. It resolves the contract, runs the
  * handler, and writes the outcome to the audit log, including failures. A call
  * that throws is never logged as a success.
+ *
+ * `actor` defaults to "agent" because this is the WebMCP call path. Server
+ * actions triggered by a dashboard button pass "human" instead, so Agent
+ * Activity and the pending-change queue both attribute the request to the
+ * person who actually clicked it, not to an agent that was never involved.
  */
-export async function runTool(name: string, args: ToolArgs): Promise<ToolRun> {
+export async function runTool(
+  name: string,
+  args: ToolArgs,
+  actor: "agent" | "human" = "agent",
+): Promise<ToolRun> {
   const startedAt = Date.now();
   const contract = findContract(name);
 
@@ -74,13 +84,14 @@ export async function runTool(name: string, args: ToolArgs): Promise<ToolRun> {
   }
 
   try {
-    const result: ToolResult = await handler(args);
+    const result: ToolResult = await handler(args, actor);
     logExecution(
       name,
       contract.kind,
       result.awaitingApproval ? "awaiting_approval" : "success",
       result.summary,
       startedAt,
+      actor,
     );
     return {
       status: 200,
@@ -101,7 +112,7 @@ export async function runTool(name: string, args: ToolArgs): Promise<ToolRun> {
         ? error.message
         : "The tool failed while reading account state";
 
-    logExecution(name, contract.kind, "error", message, startedAt);
+    logExecution(name, contract.kind, "error", message, startedAt, actor);
 
     const status = isToolError
       ? error.status

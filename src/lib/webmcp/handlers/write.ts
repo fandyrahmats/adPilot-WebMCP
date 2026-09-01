@@ -2,7 +2,11 @@ import { getPendingChanges, getRecommendations } from "@/lib/ads-service";
 import { formatCurrency } from "@/lib/format";
 import { adHref, adSetHref, campaignHref } from "@/lib/hrefs";
 import { getAdsProvider } from "@/lib/providers";
-import { requestChange } from "@/lib/server/changes";
+import {
+  applyChangeNow,
+  requestChange,
+  type ChangeRequest,
+} from "@/lib/server/changes";
 import {
   optionalDate,
   optionalEnum,
@@ -13,7 +17,30 @@ import {
   ToolError,
 } from "../args";
 import type { ToolHandler } from "./types";
-import type { ChangeOperation } from "@/types/ads";
+import type { ChangeOperation, PendingChange } from "@/types/ads";
+
+/**
+ * Every high impact write resolves through here, and the outcome depends on
+ * who asked rather than on which tool was called.
+ *
+ * An agent's request is recorded and held: the person reviewing it is a
+ * different party, which is the whole point of the queue. A request the person
+ * made themselves in the dashboard is applied at once, because they are
+ * already the approver and there is no second opinion to wait for.
+ *
+ * Both paths run the same operations through the same provider and land in the
+ * same change log, so the only real difference is whether a decision is still
+ * outstanding.
+ */
+async function settleChange(
+  request: ChangeRequest,
+  actor: "agent" | "human",
+): Promise<{ change: PendingChange; applied: boolean }> {
+  if (actor === "human") {
+    return { change: await applyChangeNow(request), applied: true };
+  }
+  return { change: requestChange(request), applied: false };
+}
 
 const createCampaign: ToolHandler = async (args) => {
   const name = requireString(args, "name");
@@ -61,6 +88,7 @@ const createAdSet: ToolHandler = async (args) => {
         ? locations.split(",").map((entry) => entry.trim())
         : [],
       ageRange: optionalString(args, "ageRange") ?? "All ages",
+      gender: optionalEnum(args, "gender", ["all", "male", "female"] as const) ?? "all",
       interests: [],
     },
     optimizationGoal:
@@ -89,7 +117,9 @@ const createAd: ToolHandler = async (args) => {
     format: requireEnum(args, "format", ["image", "video", "carousel"] as const),
     headline: requireString(args, "headline"),
     body: requireString(args, "body"),
+    description: optionalString(args, "description") ?? "",
     callToAction: optionalString(args, "callToAction") ?? "Learn more",
+    destinationUrl: optionalString(args, "destinationUrl") ?? "",
   });
 
   return {
@@ -99,7 +129,7 @@ const createAd: ToolHandler = async (args) => {
   };
 };
 
-const updateAdSetBudget: ToolHandler = async (args) => {
+const updateAdSetBudget: ToolHandler = async (args, actor) => {
   const adSetId = requireString(args, "adSetId");
   const located = await getAdsProvider().getAdSet(adSetId);
   if (!located) throw new ToolError("Ad set not found in this account", 404);
@@ -107,43 +137,51 @@ const updateAdSetBudget: ToolHandler = async (args) => {
 
   const dailyBudget = requireInteger(args, "dailyBudget", { min: 0 });
   const reason = requireString(args, "reason");
-  if (dailyBudget === adSet.budget.amount) {
+  // Read before settling: applying mutates the ad set this reference points at.
+  const previousBudget = adSet.budget.amount;
+  if (dailyBudget === previousBudget) {
     throw new ToolError("Proposed budget matches the current budget");
   }
 
-  const change = requestChange({
-    toolName: "update_ad_set_budget",
-    level: "ad_set",
-    targetId: adSet.id,
-    targetName: adSet.name,
-    targetHref: adSetHref(campaign.id, adSet.id),
-    summary: `Set ${adSet.name} daily budget to ${formatCurrency(dailyBudget)}`,
-    reason,
-    impact: "high",
-    changes: [
-      {
-        label: `${adSet.name} daily budget`,
-        before: formatCurrency(adSet.budget.amount),
-        after: formatCurrency(dailyBudget),
-      },
-    ],
-    operations: [
-      {
-        type: "ad_set_budget",
-        campaignId: campaign.id,
-        adSetId: adSet.id,
-        amount: dailyBudget,
-      },
-    ],
-    requestedBy: "agent",
-  });
+  const { change, applied } = await settleChange(
+    {
+      toolName: "update_ad_set_budget",
+      level: "ad_set",
+      targetId: adSet.id,
+      targetName: adSet.name,
+      targetHref: adSetHref(campaign.id, adSet.id),
+      summary: `Set ${adSet.name} daily budget to ${formatCurrency(dailyBudget)}`,
+      reason,
+      impact: "high",
+      changes: [
+        {
+          label: `${adSet.name} daily budget`,
+          before: formatCurrency(previousBudget),
+          after: formatCurrency(dailyBudget),
+        },
+      ],
+      operations: [
+        {
+          type: "ad_set_budget",
+          campaignId: campaign.id,
+          adSetId: adSet.id,
+          amount: dailyBudget,
+        },
+      ],
+      requestedBy: actor,
+    },
+    actor,
+  );
 
   return {
-    summary: `Budget change queued for approval as ${change.id}. ${adSet.name} still runs at ${formatCurrency(adSet.budget.amount)} per day until a person approves it.`,
-    // Send the human to the queue, since the decision is now theirs.
-    uiHref: "/review",
-    data: { change, applied: false },
-    awaitingApproval: true,
+    summary: applied
+      ? `${adSet.name} now runs at ${formatCurrency(dailyBudget)} per day, changed from ${formatCurrency(previousBudget)}. Logged as ${change.id}.`
+      : `Budget change queued for approval as ${change.id}. ${adSet.name} still runs at ${formatCurrency(previousBudget)} per day until a person approves it.`,
+    // An applied change is best seen on the ad set itself. A held one belongs
+    // in the queue, since the decision is now the reviewer's.
+    uiHref: applied ? adSetHref(campaign.id, adSet.id) : "/review",
+    data: { change, applied },
+    awaitingApproval: !applied,
   };
 };
 
@@ -211,46 +249,58 @@ async function resolveStatusTarget(
   };
 }
 
-const updateEntityStatus: ToolHandler = async (args) => {
+const updateEntityStatus: ToolHandler = async (args, actor) => {
   const level = requireEnum(args, "level", ["campaign", "ad_set", "ad"] as const);
   const id = requireString(args, "id");
   const status = requireEnum(args, "status", ["active", "paused"] as const);
-  const reason = requireString(args, "reason");
+  // A dashboard click has no reason field, since asking for one on a simple
+  // pause button would be friction with little payoff. An agent call keeps
+  // reason required, since that text is what the reviewer actually reads.
+  const reason =
+    actor === "human"
+      ? (optionalString(args, "reason") ??
+        `${status === "active" ? "Activated" : "Paused"} from the dashboard`)
+      : requireString(args, "reason");
 
   const target = await resolveStatusTarget(level, id, status);
   if (target.current === status) {
     throw new ToolError(`${target.name} is already ${status}`);
   }
 
-  const change = requestChange({
-    toolName: "update_entity_status",
-    level,
-    targetId: id,
-    targetName: target.name,
-    targetHref: target.href,
-    summary: `${status === "active" ? "Activate" : "Pause"} ${target.name}`,
-    reason,
-    impact: "high",
-    changes: [
-      {
-        label: `${target.name} status`,
-        before: target.current === "active" ? "Active" : "Paused",
-        after: status === "active" ? "Active" : "Paused",
-      },
-    ],
-    operations: [target.operation],
-    requestedBy: "agent",
-  });
+  const { change, applied } = await settleChange(
+    {
+      toolName: "update_entity_status",
+      level,
+      targetId: id,
+      targetName: target.name,
+      targetHref: target.href,
+      summary: `${status === "active" ? "Activate" : "Pause"} ${target.name}`,
+      reason,
+      impact: "high",
+      changes: [
+        {
+          label: `${target.name} status`,
+          before: target.current === "active" ? "Active" : "Paused",
+          after: status === "active" ? "Active" : "Paused",
+        },
+      ],
+      operations: [target.operation],
+      requestedBy: actor,
+    },
+    actor,
+  );
 
   return {
-    summary: `Status change queued for approval as ${change.id}. ${target.name} remains ${target.current} until a person approves it.`,
-    uiHref: "/review",
-    data: { change, applied: false },
-    awaitingApproval: true,
+    summary: applied
+      ? `${target.name} is now ${status}. Logged as ${change.id}.`
+      : `Status change queued for approval as ${change.id}. ${target.name} remains ${target.current} until a person approves it.`,
+    uiHref: applied ? target.href : "/review",
+    data: { change, applied },
+    awaitingApproval: !applied,
   };
 };
 
-const applyRecommendation: ToolHandler = async (args) => {
+const applyRecommendation: ToolHandler = async (args, actor) => {
   const recommendationId = requireString(args, "recommendationId");
   const recommendations = await getRecommendations();
   const recommendation = recommendations.find(
@@ -288,26 +338,31 @@ const applyRecommendation: ToolHandler = async (args) => {
     };
   }
 
-  const change = requestChange({
-    toolName: "apply_recommendation",
-    level: recommendation.level,
-    targetId: recommendation.targetId,
-    targetName: recommendation.targetName,
-    targetHref: recommendation.targetHref,
-    summary: recommendation.title,
-    reason: `${recommendation.rationale} ${recommendation.evidence.join(" ")}`,
-    impact: recommendation.impact,
-    changes: recommendation.changes,
-    operations: recommendation.operations,
-    requestedBy: "agent",
-    sourceRecommendationId: recommendation.id,
-  });
+  const { change, applied } = await settleChange(
+    {
+      toolName: "apply_recommendation",
+      level: recommendation.level,
+      targetId: recommendation.targetId,
+      targetName: recommendation.targetName,
+      targetHref: recommendation.targetHref,
+      summary: recommendation.title,
+      reason: `${recommendation.rationale} ${recommendation.evidence.join(" ")}`,
+      impact: recommendation.impact,
+      changes: recommendation.changes,
+      operations: recommendation.operations,
+      requestedBy: actor,
+      sourceRecommendationId: recommendation.id,
+    },
+    actor,
+  );
 
   return {
-    summary: `Recommendation ${recommendationId} queued for approval as ${change.id}. Nothing has changed yet.`,
-    uiHref: "/review",
-    data: { change, applied: false },
-    awaitingApproval: true,
+    summary: applied
+      ? `Applied ${recommendationId}: ${recommendation.title}. Logged as ${change.id}.`
+      : `Recommendation ${recommendationId} queued for approval as ${change.id}. Nothing has changed yet.`,
+    uiHref: applied ? recommendation.targetHref : "/review",
+    data: { change, applied },
+    awaitingApproval: !applied,
   };
 };
 

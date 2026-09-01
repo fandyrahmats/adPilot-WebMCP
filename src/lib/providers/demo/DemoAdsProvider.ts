@@ -113,7 +113,9 @@ export class DemoAdsProvider implements AdsProvider {
         format: input.format,
         headline: input.headline,
         body: input.body,
+        description: input.description,
         callToAction: input.callToAction,
+        destinationUrl: input.destinationUrl,
         accent: "blue" as const,
       },
       // A new ad has no delivery history, so its series starts empty rather

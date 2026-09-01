@@ -53,7 +53,9 @@ export interface CreateAdInput {
   format: CreativeFormat;
   headline: string;
   body: string;
+  description: string;
   callToAction: string;
+  destinationUrl: string;
 }
 
 export interface StatusTarget {

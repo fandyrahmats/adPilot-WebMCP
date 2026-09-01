@@ -13,5 +13,13 @@ export interface ToolResult {
   uiHref?: string;
 }
 
-/** Handlers are async because the provider behind them may be a remote API. */
-export type ToolHandler = (args: ToolArgs) => Promise<ToolResult>;
+/**
+ * Handlers are async because the provider behind them may be a remote API.
+ * `actor` is threaded through from the caller (WebMCP tool call vs. a
+ * dashboard button) so gated handlers can record who actually requested the
+ * change, instead of every pending change being attributed to an agent.
+ */
+export type ToolHandler = (
+  args: ToolArgs,
+  actor: "agent" | "human",
+) => Promise<ToolResult>;
