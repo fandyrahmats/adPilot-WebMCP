@@ -15,7 +15,7 @@ interface ActivitySeed {
 const SEEDS: ActivitySeed[] = [
   {
     id: "exec_09",
-    toolName: "get_optimization_recommendations",
+    toolName: "get_recommendations",
     kind: "read",
     status: "success",
     actor: "agent",

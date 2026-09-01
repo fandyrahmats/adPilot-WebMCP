@@ -291,7 +291,10 @@ const getPendingChangeTool: ToolHandler = async (args) => {
 };
 
 const listExecutionsTool: ToolHandler = async (args) => {
-  const limit = optionalInteger(args, "limit", { min: 1, max: 100 }) ?? 20;
+  // Capped at 25 because each entry carries a prose summary: a larger page
+  // returns tens of thousands of characters, well past the output budget
+  // Chrome's tool guidance recommends staying inside.
+  const limit = optionalInteger(args, "limit", { min: 1, max: 25 }) ?? 10;
   const executions = getToolExecutions().slice(0, limit);
   return {
     summary: `${executions.length} most recent tool executions.`,
@@ -311,7 +314,7 @@ export const READ_HANDLERS: Record<string, ToolHandler> = {
   get_performance_timeseries: getTimeseriesTool,
   get_creative_performance: getCreativePerformanceTool,
   detect_anomalies: detectAnomaliesTool,
-  get_optimization_recommendations: getRecommendationsTool,
+  get_recommendations: getRecommendationsTool,
   list_pending_changes: listPendingChangesTool,
   get_pending_change: getPendingChangeTool,
   list_tool_executions: listExecutionsTool,

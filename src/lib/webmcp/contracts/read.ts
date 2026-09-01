@@ -146,7 +146,7 @@ export const READ_TOOLS: ToolContract[] = [
     inputSchema: EMPTY_SCHEMA,
   },
   {
-    name: "get_optimization_recommendations",
+    name: "get_recommendations",
     title: "Read recommendations",
     description:
       "Get ranked optimization recommendations derived from current performance, each with evidence, the proposed before and after values, and the tool that would carry it out.",
@@ -195,9 +195,10 @@ export const READ_TOOLS: ToolContract[] = [
       properties: {
         limit: {
           type: "integer",
-          description: "How many entries to return, newest first. Default 20.",
+          description:
+            "How many entries to return, newest first. Default 10, maximum 25. The full log is in the workspace under Agent Activity.",
           minimum: 1,
-          maximum: 100,
+          maximum: 25,
         },
       },
       additionalProperties: false,
