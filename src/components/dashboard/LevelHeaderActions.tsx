@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Pause, Pencil, Play } from "lucide-react";
-import { queueStatusChangeAction, updateAdSetBudgetAction } from "@/app/actions";
+import { changeStatusAction, updateAdSetBudgetAction } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { Input, Label } from "@/components/ui/Input";
@@ -36,7 +36,7 @@ function StatusToggle({
   pendingChange?: PendingChange;
 }) {
   const [state, formAction] = useActionState(
-    queueStatusChangeAction,
+    changeStatusAction,
     initialToolFormState,
   );
   const nextStatus = status === "active" ? "paused" : "active";

@@ -77,10 +77,12 @@ export async function rejectPendingChangeAction(
 }
 
 /**
- * Lets the human raise a recommendation into the review queue through the same
- * handler an agent would call, so both paths produce identical state.
+ * Applies a recommendation through the same handler an agent would call. The
+ * person clicking here is the one who would otherwise approve it, so it takes
+ * effect at once rather than joining the review queue. An agent calling
+ * apply_recommendation is held instead.
  */
-export async function queueRecommendationAction(
+export async function applyRecommendationAction(
   formData: FormData,
 ): Promise<void> {
   const recommendationId = String(formData.get("recommendationId") ?? "");
@@ -189,12 +191,11 @@ export async function createAdAction(
 }
 
 /**
- * Pausing or activating is a high impact write: this queues the same
- * approval request update_entity_status would raise for an agent. The status
- * shown in the dashboard does not change until a person approves it in
- * /review.
+ * Pausing or activating is a high impact write, but a person using the
+ * dashboard is already the approver, so it applies immediately and is logged
+ * as decided. The same tool called by an agent is held in /review instead.
  */
-export async function queueStatusChangeAction(
+export async function changeStatusAction(
   _prevState: ToolFormState,
   formData: FormData,
 ): Promise<ToolFormState> {
@@ -206,7 +207,8 @@ export async function queueStatusChangeAction(
   });
 }
 
-/** Ad set budget edits are gated the same way; this only queues the request. */
+/** Ad set budget edits run through the same gated tool, and likewise apply at
+ * once when the person in the dashboard asks for them. */
 export async function updateAdSetBudgetAction(
   _prevState: ToolFormState,
   formData: FormData,

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight, ShieldAlert, Terminal } from "lucide-react";
-import { queueRecommendationAction } from "@/app/actions";
+import { applyRecommendationAction } from "@/app/actions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -112,7 +112,7 @@ export function RecommendationCard({ recommendation, existingChange }: Props) {
               <ShieldAlert className="size-3.5" />
               If the agent asks for this, it waits for you instead
             </span>
-            <form action={queueRecommendationAction}>
+            <form action={applyRecommendationAction}>
               <input
                 type="hidden"
                 name="recommendationId"
