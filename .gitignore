@@ -13,6 +13,12 @@
 /docs/
 /.kiro/
 
+# A second, unrelated WebMCP Challenge submission that happens to live in this
+# directory. It is its own git repository with its own license and its own
+# submission, and it must never be committed here: after this project is
+# submitted, its repository is frozen until winners are announced.
+/origami-webMCP/
+
 # Dependencies
 /node_modules
 /.pnp
