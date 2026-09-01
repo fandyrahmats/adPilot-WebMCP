@@ -22,10 +22,29 @@ to a person, all inside the same page the human is looking at.
 | Step | Who | How |
 | --- | --- | --- |
 | Read performance, find anomalies | agent | read tools |
-| Build campaign structure | agent | create tools, entities start paused |
-| Propose a budget or delivery change | agent | gated write tools, held for review |
-| Approve or reject | human | review queue in the UI |
+| Build campaign structure | agent or human | create tools, entities start paused |
+| Propose a budget or delivery change | agent or human | gated write tools, held for review |
+| Approve or reject | human only | review queue in the UI |
 | Apply the change | system | only after approval, through the provider |
+
+The dashboard is not a read-only viewer that an agent acts upon from outside.
+Its create forms and its Pause, Activate, and Edit budget controls call the
+same tools through the same server-side handlers an agent calls. What differs
+is not the tool but the authority of the caller.
+
+**Authorization is actor-aware, not tool-aware.** A budget or delivery change
+an agent asks for is held in the review queue. The identical change made by a
+person in the dashboard applies at once and is logged as already decided. The
+queue is valuable because it separates whoever proposes a change from whoever
+decides on it; when the requester is already the approver that separation does
+not exist, so routing them to approve their own click would be ceremony rather
+than oversight. Approval is the one step with no agent path at all, which is
+why an agent can never clear its own request.
+
+This is a product boundary, not a security perimeter. The security perimeter is
+the session gate in [`src/proxy.ts`](src/proxy.ts). An agent reaching the app
+through WebMCP always arrives via `/api/webmcp/*`, which is fixed to the agent
+actor and cannot claim to be a person.
 
 ## WebMCP implementation
 
@@ -73,7 +92,11 @@ anything running in the tab.
 | --- | --- | --- |
 | read | `get_ad_account`, `get_goal_progress`, `get_account_performance`, `list_campaigns`, `get_campaign`, `get_ad_set`, `get_ad`, `get_performance_timeseries`, `get_creative_performance`, `detect_anomalies`, `get_optimization_recommendations`, `list_pending_changes`, `get_pending_change`, `list_tool_executions` | run freely |
 | create | `create_campaign`, `create_ad_set`, `create_ad` | apply immediately, always created paused so they cannot spend |
-| gated | `update_ad_set_budget`, `update_entity_status`, `apply_recommendation` | recorded as an approval request; the account does not change |
+| gated | `update_ad_set_budget`, `update_entity_status`, `apply_recommendation` | held as an approval request when an agent calls them; the account does not change |
+
+The gated three are gated **by caller, not by tool**. Called by an agent they
+are recorded and wait. Invoked by a person through the dashboard's own controls
+they apply straight away, because that person is the approver.
 
 Approval is deliberately **not** a tool. It is a server action reached by a
 person clicking in the review queue, so an agent cannot approve its own request.
@@ -199,12 +222,18 @@ now does the budget change. The decision is recorded in **Agent Activity** with
 
 0. **Sign in** at `/login` with the demo credentials.
 1. **Overview** - goal progress, KPIs, campaign table.
-2. **Campaigns** - drill down campaign to ad set to ad.
+2. **Campaigns** - the whole campaign, ad set, and ad hierarchy in one
+   expandable tree. Open any row for that level's own page.
 3. **Insights** - spend allocation and the creative whose click-through rate is decaying.
 4. Ask the agent to `detect_anomalies`, then `get_optimization_recommendations`.
 5. Ask it to `apply_recommendation` for `rec_reallocate_budget`. It is held, not applied.
 6. **Review** - read the evidence and the before/after diff, then approve.
 7. Watch the ad set budget change and the entry appear in **Agent Activity**.
+
+To see both paths land in the same place, use **Add campaign** on `/campaigns`
+to walk the create wizard yourself, then ask the agent to create one too. Both
+appear in the same tree, both start paused, and **Agent Activity** logs them
+identically apart from the actor.
 
 ## Deploying to Render
 
