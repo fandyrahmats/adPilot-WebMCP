@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { CreativePreview } from "@/components/dashboard/CreativePreview";
 import { DeltaBadge } from "@/components/dashboard/DeltaBadge";
+import { DetailPanel } from "@/components/dashboard/DetailPanel";
 import { LevelHeader } from "@/components/dashboard/LevelHeader";
+import { LevelHeaderActions } from "@/components/dashboard/LevelHeaderActions";
 import { MetricGrid } from "@/components/dashboard/MetricGrid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { findAd, toTrendView } from "@/lib/ads-service";
+import { findAd, getPendingChanges, toTrendView } from "@/lib/ads-service";
 import { formatCurrency, formatMetric } from "@/lib/format";
 import {
   adTotals,
@@ -13,6 +15,14 @@ import {
   effectiveStatus,
   windowDelta,
 } from "@/lib/metrics";
+
+const FORMAT_LABEL: Record<string, string> = {
+  image: "Image",
+  video: "Video",
+  carousel: "Carousel",
+};
+
+export const dynamic = "force-dynamic";
 
 export default async function AdPage({
   params,
@@ -29,6 +39,12 @@ export default async function AdPage({
   const { campaign, adSet, ad } = found;
   const metrics = deriveMetrics(adTotals(ad));
   const parentStatus = effectiveStatus(adSet.status, campaign.status);
+  const pendingStatusChange = getPendingChanges().find(
+    (change) =>
+      change.status === "pending" &&
+      change.targetId === ad.id &&
+      change.operations.some((operation) => operation.type === "entity_status"),
+  );
 
   const creativeSignals = [
     { label: "Click-through rate", metric: "ctr" as const, format: "percent" as const, invert: false },
@@ -54,18 +70,49 @@ export default async function AdPage({
         effectiveStatus={effectiveStatus(ad.status, parentStatus)}
         budgetLabel={`${formatCurrency(adSet.budget.amount)} / day`}
         budgetInherited
-        facts={[
-          { label: "Creative", value: ad.creative.name },
-          { label: "Format", value: ad.creative.format },
-          { label: "Call to action", value: ad.creative.callToAction },
-          { label: "Placements", value: adSet.placements.join(", ") },
-        ]}
+        actions={
+          <LevelHeaderActions
+            level="ad"
+            id={ad.id}
+            status={ad.status}
+            pendingStatusChange={pendingStatusChange}
+          />
+        }
       />
 
       <MetricGrid metrics={metrics} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
+          <DetailPanel
+            title="Ad setup"
+            fields={[
+              { label: "Ad ID", value: ad.id },
+              { label: "Ad set", value: adSet.name },
+              { label: "Format", value: FORMAT_LABEL[ad.creative.format] },
+              { label: "Placements", value: adSet.placements.join(", ") || "—" },
+              {
+                label: "Daily budget",
+                value: `${formatCurrency(adSet.budget.amount)} (inherited from ad set)`,
+              },
+            ]}
+          />
+
+          <DetailPanel
+            title="Ad creative"
+            fields={[
+              { label: "Creative name", value: ad.creative.name },
+              { label: "Headline", value: ad.creative.headline },
+              { label: "Primary text", value: ad.creative.body },
+              { label: "Description", value: ad.creative.description || "—" },
+              { label: "Call to action", value: ad.creative.callToAction },
+              {
+                label: "Destination URL",
+                value: ad.creative.destinationUrl || "—",
+              },
+            ]}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Conversions and spend</CardTitle>

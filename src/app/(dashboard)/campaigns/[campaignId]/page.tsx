@@ -1,17 +1,24 @@
 import { notFound } from "next/navigation";
 import { TrendChart } from "@/components/charts/TrendChart";
+import { CampaignTree } from "@/components/dashboard/CampaignTree";
+import { CreateHierarchyWizard } from "@/components/dashboard/CreateHierarchyWizard";
+import { DetailPanel } from "@/components/dashboard/DetailPanel";
 import { LevelHeader } from "@/components/dashboard/LevelHeader";
+import { LevelHeaderActions } from "@/components/dashboard/LevelHeaderActions";
 import { MetricGrid } from "@/components/dashboard/MetricGrid";
-import { PerformanceTable } from "@/components/dashboard/PerformanceTable";
+import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import {
   findCampaign,
-  getAdSetRows,
+  getAdSetTree,
+  getPendingChanges,
   objectiveLabel,
   toTrendView,
 } from "@/lib/ads-service";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { campaignDaily, campaignTotals, deriveMetrics } from "@/lib/metrics";
+
+export const dynamic = "force-dynamic";
 
 export default async function CampaignPage({
   params,
@@ -24,7 +31,13 @@ export default async function CampaignPage({
 
   const metrics = deriveMetrics(campaignTotals(campaign));
   const daily = campaignDaily(campaign);
-  const adSetRows = getAdSetRows(campaign);
+  const adSetTree = getAdSetTree(campaign);
+  const pendingStatusChange = getPendingChanges().find(
+    (change) =>
+      change.status === "pending" &&
+      change.targetId === campaign.id &&
+      change.operations.some((operation) => operation.type === "entity_status"),
+  );
 
   return (
     <div className="space-y-6">
@@ -39,26 +52,54 @@ export default async function CampaignPage({
         budgetLabel={`${formatCurrency(campaign.budget.amount)} ${
           campaign.budget.period === "daily" ? "/ day" : "lifetime"
         }`}
-        facts={[
-          { label: "Objective", value: objectiveLabel(campaign) },
-          {
-            label: "Schedule",
-            value: `${formatDate(campaign.startDate)} to ${
-              campaign.endDate ? formatDate(campaign.endDate) : "no end date"
-            }`,
-          },
-          { label: "Ad sets", value: `${campaign.adSets.length}` },
-          {
-            label: "Ads",
-            value: `${campaign.adSets.reduce(
-              (total, adSet) => total + adSet.ads.length,
-              0,
-            )}`,
-          },
-        ]}
+        actions={
+          <LevelHeaderActions
+            level="campaign"
+            id={campaign.id}
+            status={campaign.status}
+            pendingStatusChange={pendingStatusChange}
+          />
+        }
       />
 
       <MetricGrid metrics={metrics} />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <DetailPanel
+          title="Campaign details"
+          fields={[
+            { label: "Campaign ID", value: campaign.id },
+            { label: "Objective", value: objectiveLabel(campaign) },
+            {
+              label: "Ad sets",
+              value: `${campaign.adSets.length}`,
+            },
+            {
+              label: "Ads",
+              value: `${campaign.adSets.reduce(
+                (total, adSet) => total + adSet.ads.length,
+                0,
+              )}`,
+            },
+          ]}
+        />
+        <DetailPanel
+          title="Budget & schedule"
+          fields={[
+            {
+              label: "Budget",
+              value: `${formatCurrency(campaign.budget.amount)} ${
+                campaign.budget.period === "daily" ? "per day" : "lifetime"
+              }`,
+            },
+            { label: "Start date", value: formatDate(campaign.startDate) },
+            {
+              label: "End date",
+              value: campaign.endDate ? formatDate(campaign.endDate) : "No end date",
+            },
+          ]}
+        />
+      </div>
 
       <Card>
         <CardHeader>
@@ -78,20 +119,27 @@ export default async function CampaignPage({
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle>Ad sets</CardTitle>
-          <p className="text-muted-foreground text-xs">
-            Each row sums the ads inside it.
-          </p>
-        </CardHeader>
-        <PerformanceTable
-          rows={adSetRows}
-          nameHeader="Ad set"
-          emptyTitle="No ad sets in this campaign"
-          emptyDescription="An ad set defines audience, placement, and budget. Ask the agent to add one to this campaign."
+      <section>
+        <SectionHeader
+          title="Ad sets"
+          description="Expand an ad set to see the ads inside it."
+          action={
+            <CreateHierarchyWizard
+              startStep="ad_set"
+              campaignId={campaign.id}
+              campaignName={campaign.name}
+            />
+          }
         />
-      </Card>
+        <Card className="overflow-hidden">
+          <CampaignTree
+            rows={adSetTree}
+            nameHeader="Ad set"
+            emptyTitle="No ad sets in this campaign"
+            emptyDescription="An ad set defines audience, placement, and budget. Add one above, or ask the agent to."
+          />
+        </Card>
+      </section>
     </div>
   );
 }

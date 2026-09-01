@@ -36,9 +36,14 @@ export default async function ReviewPage() {
         <p className="text-xs leading-relaxed">
           <span className="font-medium">Approval policy. </span>
           Read tools run freely. Creating a campaign, ad set, or ad is allowed
-          because new entities start paused and cannot spend. Budget and status
-          changes are held here, and approval is not exposed as a tool, so an
-          agent cannot approve its own request.
+          because new entities start paused and cannot spend. Budget and
+          delivery changes are held here when an <span className="font-medium">agent</span>{" "}
+          asks for them, because the point of this queue is that whoever
+          proposes a change is not whoever decides on it. The same change made
+          by you in the dashboard applies at once and appears below as already
+          decided: you are the approver, so there is no second opinion to wait
+          for. Approval itself is not exposed as a tool, so an agent has no
+          path to clear its own request.
         </p>
       </Card>
 

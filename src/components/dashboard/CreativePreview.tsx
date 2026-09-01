@@ -42,13 +42,31 @@ export function CreativePreview({ creative }: { creative: Creative }) {
             {creative.name}
           </span>
         </div>
-        <p className="text-sm font-semibold leading-snug">{creative.headline}</p>
         <p className="text-muted-foreground text-xs leading-relaxed">
           {creative.body}
         </p>
-        <p className="text-primary text-xs font-medium">
-          {creative.callToAction}
-        </p>
+        <div className="rounded-md border">
+          <div className="px-3 py-2">
+            {creative.destinationUrl && (
+              <p className="text-muted-foreground truncate text-[11px] uppercase">
+                {creative.destinationUrl.replace(/^https?:\/\//, "")}
+              </p>
+            )}
+            <p className="text-sm font-semibold leading-snug">
+              {creative.headline}
+            </p>
+            {creative.description && (
+              <p className="text-muted-foreground truncate text-xs">
+                {creative.description}
+              </p>
+            )}
+          </div>
+          <div className="border-t px-3 py-2">
+            <span className="bg-muted inline-flex rounded-sm px-3 py-1.5 text-xs font-semibold">
+              {creative.callToAction}
+            </span>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

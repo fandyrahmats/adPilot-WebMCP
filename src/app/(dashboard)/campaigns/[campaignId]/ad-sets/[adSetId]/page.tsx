@@ -1,10 +1,19 @@
 import { notFound } from "next/navigation";
 import { TrendChart } from "@/components/charts/TrendChart";
+import { CreateHierarchyWizard } from "@/components/dashboard/CreateHierarchyWizard";
+import { DetailPanel } from "@/components/dashboard/DetailPanel";
 import { LevelHeader } from "@/components/dashboard/LevelHeader";
+import { LevelHeaderActions } from "@/components/dashboard/LevelHeaderActions";
 import { MetricGrid } from "@/components/dashboard/MetricGrid";
 import { PerformanceTable } from "@/components/dashboard/PerformanceTable";
+import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { findAdSet, getAdRows, toTrendView } from "@/lib/ads-service";
+import {
+  findAdSet,
+  getAdRows,
+  getPendingChanges,
+  toTrendView,
+} from "@/lib/ads-service";
 import { formatAudienceSize, formatCurrency } from "@/lib/format";
 import {
   adSetDaily,
@@ -12,6 +21,15 @@ import {
   deriveMetrics,
   effectiveStatus,
 } from "@/lib/metrics";
+import type { Gender } from "@/types/ads";
+
+const GENDER_LABEL: Record<Gender, string> = {
+  all: "All genders",
+  male: "Male",
+  female: "Female",
+};
+
+export const dynamic = "force-dynamic";
 
 export default async function AdSetPage({
   params,
@@ -26,6 +44,15 @@ export default async function AdSetPage({
   const { campaign, adSet } = found;
   const metrics = deriveMetrics(adSetTotals(adSet));
   const adRows = getAdRows(campaign, adSet);
+  const pendingChanges = getPendingChanges().filter(
+    (change) => change.status === "pending" && change.targetId === adSet.id,
+  );
+  const pendingStatusChange = pendingChanges.find((change) =>
+    change.operations.some((operation) => operation.type === "entity_status"),
+  );
+  const pendingBudgetChange = pendingChanges.find((change) =>
+    change.operations.some((operation) => operation.type === "ad_set_budget"),
+  );
 
   return (
     <div className="space-y-6">
@@ -42,25 +69,62 @@ export default async function AdSetPage({
         budgetLabel={`${formatCurrency(adSet.budget.amount)} ${
           adSet.budget.period === "daily" ? "/ day" : "lifetime"
         }`}
-        facts={[
-          { label: "Audience", value: adSet.audience.name },
-          {
-            label: "Reachable",
-            value: formatAudienceSize(adSet.audience.sizeEstimate),
-          },
-          {
-            label: "Age and location",
-            value: `${adSet.audience.ageRange} · ${adSet.audience.locations.join(", ")}`,
-          },
-          { label: "Placements", value: adSet.placements.join(", ") },
-          { label: "Optimizing for", value: adSet.optimizationGoal },
-          { label: "Bid strategy", value: adSet.bidStrategy },
-          { label: "Interests", value: adSet.audience.interests.join(", ") },
-          { label: "Ads", value: `${adSet.ads.length}` },
-        ]}
+        actions={
+          <LevelHeaderActions
+            level="ad_set"
+            id={adSet.id}
+            status={adSet.status}
+            adSetBudget={adSet.budget.amount}
+            pendingStatusChange={pendingStatusChange}
+            pendingBudgetChange={pendingBudgetChange}
+          />
+        }
       />
 
       <MetricGrid metrics={metrics} />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <DetailPanel
+          title="Audience"
+          fields={[
+            { label: "Ad set ID", value: adSet.id },
+            { label: "Audience name", value: adSet.audience.name },
+            {
+              label: "Estimated reach",
+              value: formatAudienceSize(adSet.audience.sizeEstimate),
+            },
+            { label: "Age range", value: adSet.audience.ageRange },
+            { label: "Gender", value: GENDER_LABEL[adSet.audience.gender] },
+            { label: "Locations", value: adSet.audience.locations.join(", ") || "—" },
+            {
+              label: "Interests",
+              value: adSet.audience.interests.join(", ") || "—",
+            },
+          ]}
+        />
+        <div className="space-y-4">
+          <DetailPanel
+            title="Budget & bidding"
+            fields={[
+              {
+                label: "Daily budget",
+                value: `${formatCurrency(adSet.budget.amount)} ${
+                  adSet.budget.period === "daily" ? "per day" : "lifetime"
+                }`,
+              },
+              { label: "Bid strategy", value: adSet.bidStrategy },
+              { label: "Optimization goal", value: adSet.optimizationGoal },
+            ]}
+          />
+          <DetailPanel
+            title="Placements"
+            fields={[
+              { label: "Placements", value: adSet.placements.join(", ") || "—" },
+              { label: "Ads in this set", value: `${adSet.ads.length}` },
+            ]}
+          />
+        </div>
+      </div>
 
       <Card>
         <CardHeader>
@@ -80,20 +144,28 @@ export default async function AdSetPage({
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle>Ads</CardTitle>
-          <p className="text-muted-foreground text-xs">
-            Ads inherit the ad set budget. Open one to see its creative.
-          </p>
-        </CardHeader>
-        <PerformanceTable
-          rows={adRows}
-          nameHeader="Ad"
-          emptyTitle="No ads in this ad set"
-          emptyDescription="An ad carries the creative that people see. Ask the agent to add one to this ad set."
+      <section>
+        <SectionHeader
+          title="Ads"
+          description="Ads inherit the ad set budget. Open one to see its creative."
+          action={
+            <CreateHierarchyWizard
+              startStep="ad"
+              adSetId={adSet.id}
+              adSetName={adSet.name}
+              campaignName={campaign.name}
+            />
+          }
         />
-      </Card>
+        <Card className="overflow-hidden">
+          <PerformanceTable
+            rows={adRows}
+            nameHeader="Ad"
+            emptyTitle="No ads in this ad set"
+            emptyDescription="An ad carries the creative that people see. Add one above, or ask the agent to."
+          />
+        </Card>
+      </section>
     </div>
   );
 }

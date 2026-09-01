@@ -28,6 +28,7 @@ import type {
   PerformanceRow,
   Recommendation,
   ToolExecution,
+  TreeRow,
 } from "@/types/ads";
 
 export const REPORTING_REFERENCE = {
@@ -212,6 +213,36 @@ export function getAdRows(campaign: Campaign, adSet: AdSet): PerformanceRow[] {
     budgetInherited: true,
     metrics: deriveMetrics(adTotals(ad)),
     trend: trendSeries(ad.daily, "conversions"),
+  }));
+}
+
+/**
+ * Ad set rows for one campaign, each carrying its own ads as children, so a
+ * tree table can expand a campaign straight down to its ads.
+ */
+export function getAdSetTree(campaign: Campaign): TreeRow[] {
+  return getAdSetRows(campaign).map((row, index) => ({
+    ...row,
+    level: "ad_set" as const,
+    children: getAdRows(campaign, campaign.adSets[index]).map((adRow) => ({
+      ...adRow,
+      level: "ad" as const,
+    })),
+  }));
+}
+
+/**
+ * The full Campaign -> Ad Set -> Ad hierarchy as one nested row tree, for the
+ * account-wide tree table. Every level's totals are already the sum of its
+ * children, since PerformanceRow metrics are derived the same way everywhere.
+ */
+export async function getCampaignTree(): Promise<TreeRow[]> {
+  const campaigns = await getCampaigns();
+  const rows = await getCampaignRows();
+  return rows.map((row, index) => ({
+    ...row,
+    level: "campaign" as const,
+    children: getAdSetTree(campaigns[index]),
   }));
 }
 

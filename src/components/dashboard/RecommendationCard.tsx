@@ -110,7 +110,7 @@ export function RecommendationCard({ recommendation, existingChange }: Props) {
           <>
             <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[11px]">
               <ShieldAlert className="size-3.5" />
-              Nothing changes until a person approves it
+              If the agent asks for this, it waits for you instead
             </span>
             <form action={queueRecommendationAction}>
               <input
@@ -119,7 +119,7 @@ export function RecommendationCard({ recommendation, existingChange }: Props) {
                 value={recommendation.id}
               />
               <Button type="submit" size="sm" variant="outline">
-                Send to review
+                Apply now
               </Button>
             </form>
           </>

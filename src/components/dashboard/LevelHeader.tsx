@@ -1,13 +1,8 @@
-import { Pause, Pencil, Wallet } from "lucide-react";
+import type { ReactNode } from "react";
+import { Wallet } from "lucide-react";
 import { Breadcrumbs, type Crumb } from "@/components/layout/Breadcrumbs";
-import { Button } from "@/components/ui/Button";
 import type { EntityStatus } from "@/types/ads";
 import { StatusPill } from "./StatusPill";
-
-export interface LevelFact {
-  label: string;
-  value: string;
-}
 
 interface Props {
   crumbs: Crumb[];
@@ -17,10 +12,18 @@ interface Props {
   effectiveStatus?: EntityStatus;
   budgetLabel: string;
   budgetInherited?: boolean;
-  facts: LevelFact[];
+  /** Level-specific controls (status toggle, budget edit). Omit for levels
+   * with nothing actionable, such as the ad-set-only budget edit. */
+  actions?: ReactNode;
 }
 
-/** Shared header contract used by every level of the hierarchy. */
+/**
+ * Shared header contract used by every level of the hierarchy: breadcrumb,
+ * name, status, budget, and the level's actions. Setup details live in
+ * DetailPanel sections below the header instead of a flat fact grid here,
+ * so the page reads the way a real ads platform groups campaign, budget,
+ * audience, and creative fields into their own labeled panels.
+ */
 export function LevelHeader({
   crumbs,
   eyebrow,
@@ -29,7 +32,7 @@ export function LevelHeader({
   effectiveStatus,
   budgetLabel,
   budgetInherited = false,
-  facts,
+  actions,
 }: Props) {
   return (
     <header className="mb-6">
@@ -55,28 +58,8 @@ export function LevelHeader({
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Pause />
-            Pause
-          </Button>
-          <Button variant="outline" size="sm">
-            <Pencil />
-            Edit
-          </Button>
-        </div>
+        {actions && <div className="flex gap-2">{actions}</div>}
       </div>
-
-      <dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-        {facts.map((fact) => (
-          <div key={fact.label} className="min-w-0">
-            <dt className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-              {fact.label}
-            </dt>
-            <dd className="mt-0.5 truncate text-sm">{fact.value}</dd>
-          </div>
-        ))}
-      </dl>
     </header>
   );
 }
