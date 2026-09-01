@@ -75,6 +75,28 @@ export function formatToolReply(response: ToolCallResponse): string {
   return `${response.summary}\n\n${JSON.stringify(response.data)}`;
 }
 
+/**
+ * Tools whose payload is limited to app-owned configuration and computed
+ * numbers. Every other tool returns stored text that a person or an earlier
+ * agent authored: campaign and audience names, creative copy, and the reason
+ * attached to an approval request. Chrome's tool security guidance treats that
+ * as untrusted content an agent should scrutinise rather than obey, so it is
+ * labelled as such at registration.
+ *
+ * Written as an opt-out list so a tool added later is treated as untrusted
+ * until someone deliberately decides it is not.
+ */
+const FIRST_PARTY_PAYLOAD_ONLY = new Set([
+  "get_ad_account",
+  "get_goal_progress",
+  "get_account_performance",
+  "get_performance_timeseries",
+]);
+
+export function returnsUntrustedContent(contract: ToolContract): boolean {
+  return !FIRST_PARTY_PAYLOAD_ONLY.has(contract.name);
+}
+
 export function describeTool(contract: ToolContract): string {
   if (contract.kind === "read") return contract.description;
   return contract.requiresApproval

@@ -11,6 +11,7 @@ import {
   formatToolReply,
   registerWebMcpTool,
   resolveModelContext,
+  returnsUntrustedContent,
 } from "@/lib/webmcp/client";
 
 type Surface = "server" | "present" | "absent";
@@ -61,7 +62,7 @@ export function WebMcpRuntime() {
               inputSchema: contract.inputSchema,
               annotations: {
                 readOnlyHint: contract.kind === "read",
-                untrustedContentHint: false,
+                untrustedContentHint: returnsUntrustedContent(contract),
               },
               execute: async (args, context) => {
                 setRunningTool(contract.name);
