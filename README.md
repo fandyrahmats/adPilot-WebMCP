@@ -58,7 +58,10 @@ await document.modelContext.registerTool(
     name: contract.name,
     description: describeTool(contract),
     inputSchema: contract.inputSchema,
-    annotations: { readOnlyHint: contract.kind === "read" },
+    annotations: {
+      readOnlyHint: contract.kind === "read",
+      untrustedContentHint: returnsUntrustedContent(contract),
+    },
     execute: async (args, context) => {
       const response = await callTool(contract.name, args ?? {}, context?.signal);
       return formatToolReply(response);
@@ -84,13 +87,42 @@ Handlers run on the server, not in the page. The browser only forwards
 arguments, so account scope and the approval rules cannot be bypassed by
 anything running in the tab.
 
+### Against Chrome's tool security guidance
+
+Chrome publishes [guidance for WebMCP tool authors](https://developer.chrome.com/docs/ai/webmcp/secure-tools)
+covering annotation hints, cross-origin exposure, and character budgets. Where
+this project stands, measured rather than assumed:
+
+- `readOnlyHint` follows the contract kind, so the 14 reads are marked
+  read-only and the 6 writes are not.
+- `untrustedContentHint` is set for every tool whose payload can carry text a
+  person or an earlier agent wrote: entity names, audience labels, creative
+  copy, and the reason attached to an approval request. The four tools
+  returning only app-owned configuration or computed numbers are the
+  exception, listed as an opt-out in
+  [`src/lib/webmcp/client.ts`](src/lib/webmcp/client.ts) so a tool added later
+  is treated as untrusted until someone decides otherwise.
+- `exposedTo` is deliberately unset. Tools stay available to agents on this
+  origin and are not shared with other origins.
+- Names and descriptions are inside the recommended limits: longest tool name
+  26 of 30 characters, longest registered description 459 of 500, every
+  parameter description under 150.
+- Output size is a deliberate tradeoff, not full conformance. Eight of the
+  fourteen reads return less than the recommended 1.5K characters. The six
+  that exceed it top out at 3.5K, because the evidence an agent needs to
+  justify a budget change does not compress into 1.5K without dropping the
+  numbers the reasoning rests on. `list_tool_executions` is the one that was
+  genuinely unreasonable: it could previously return the audit log 100 entries
+  at a time, around 22K characters, so it is now capped at 25 and defaults
+  to 10.
+
 ## Tool surface
 
 14 read tools, 3 create tools, 3 approval-gated write tools.
 
 | Kind | Tools | Behaviour |
 | --- | --- | --- |
-| read | `get_ad_account`, `get_goal_progress`, `get_account_performance`, `list_campaigns`, `get_campaign`, `get_ad_set`, `get_ad`, `get_performance_timeseries`, `get_creative_performance`, `detect_anomalies`, `get_optimization_recommendations`, `list_pending_changes`, `get_pending_change`, `list_tool_executions` | run freely |
+| read | `get_ad_account`, `get_goal_progress`, `get_account_performance`, `list_campaigns`, `get_campaign`, `get_ad_set`, `get_ad`, `get_performance_timeseries`, `get_creative_performance`, `detect_anomalies`, `get_recommendations`, `list_pending_changes`, `get_pending_change`, `list_tool_executions` | run freely |
 | create | `create_campaign`, `create_ad_set`, `create_ad` | apply immediately, always created paused so they cannot spend |
 | gated | `update_ad_set_budget`, `update_entity_status`, `apply_recommendation` | held as an approval request when an agent calls them; the account does not change |
 
@@ -225,7 +257,7 @@ now does the budget change. The decision is recorded in **Agent Activity** with
 2. **Campaigns** - the whole campaign, ad set, and ad hierarchy in one
    expandable tree. Open any row for that level's own page.
 3. **Insights** - spend allocation and the creative whose click-through rate is decaying.
-4. Ask the agent to `detect_anomalies`, then `get_optimization_recommendations`.
+4. Ask the agent to `detect_anomalies`, then `get_recommendations`.
 5. Ask it to `apply_recommendation` for `rec_reallocate_budget`. It is held, not applied.
 6. **Review** - read the evidence and the before/after diff, then approve.
 7. Watch the ad set budget change and the entry appear in **Agent Activity**.
