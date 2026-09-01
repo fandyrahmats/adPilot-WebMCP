@@ -135,7 +135,10 @@ const updateAdSetBudget: ToolHandler = async (args, actor) => {
   if (!located) throw new ToolError("Ad set not found in this account", 404);
   const { campaign, adSet } = located;
 
-  const dailyBudget = requireInteger(args, "dailyBudget", { min: 0 });
+  // Floor of 1, matching create_ad_set. A zero daily budget is not a pause,
+  // it is a request that reads as legitimate in the review queue while
+  // actually starving delivery, so it is rejected at the edge instead.
+  const dailyBudget = requireInteger(args, "dailyBudget", { min: 1 });
   const reason = requireString(args, "reason");
   // Read before settling: applying mutates the ad set this reference points at.
   const previousBudget = adSet.budget.amount;
@@ -313,7 +316,7 @@ const applyRecommendation: ToolHandler = async (args, actor) => {
     const available = recommendations.map((entry) => entry.id);
     throw new ToolError(
       available.length === 0
-        ? `No recommendation "${recommendationId}" exists, and there are none right now. Call get_optimization_recommendations to check.`
+        ? `No recommendation "${recommendationId}" exists, and there are none right now. Call get_recommendations to check.`
         : `No recommendation "${recommendationId}" exists. Available right now: ${available.join(", ")}.`,
       404,
     );

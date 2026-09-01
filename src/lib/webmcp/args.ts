@@ -37,6 +37,12 @@ export function requireInteger(
   { min = 0, max = Number.MAX_SAFE_INTEGER }: { min?: number; max?: number } = {},
 ): number {
   const value = args[key];
+  // Number("") and Number("   ") both evaluate to 0, so a blank field would
+  // otherwise arrive as a real figure of zero. A missing number has to fail
+  // rather than default to the bottom of the allowed range.
+  if (typeof value === "string" && value.trim() === "") {
+    throw new ToolError(`"${key}" is required and must be a number`);
+  }
   const parsed = typeof value === "string" ? Number(value) : value;
   if (typeof parsed !== "number" || !Number.isFinite(parsed)) {
     throw new ToolError(`"${key}" is required and must be a number`);

@@ -134,7 +134,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "update_ad_set_budget",
     title: "Change ad set budget (approval required)",
     description:
-      "Request a new daily budget for an ad set. Called by you, this is a high impact write: it is recorded as an approval request and changes nothing until a person approves it in the review queue. Include the reasoning, because the reviewer reads it. The same control exists in the dashboard and applies straight away when a person uses it themselves, since they are the approver; that asymmetry is deliberate, so do not expect your own call to take effect.",
+      "Request a new daily budget for an ad set. Called by you this is recorded as an approval request and changes nothing until a person approves it in the review queue, so include the reasoning the reviewer will read. The same control in the dashboard applies at once when a person uses it, because they are the approver.",
     kind: "write",
     requiresApproval: true,
     inputSchema: {
@@ -146,8 +146,9 @@ export const WRITE_TOOLS: ToolContract[] = [
         },
         dailyBudget: {
           type: "integer",
-          description: "Proposed daily budget in the account currency.",
-          minimum: 0,
+          description:
+            "Proposed daily budget in the account currency. Use update_entity_status to stop delivery, not a budget of zero.",
+          minimum: 1,
         },
         reason: {
           type: "string",
@@ -196,7 +197,7 @@ export const WRITE_TOOLS: ToolContract[] = [
     name: "apply_recommendation",
     title: "Apply a recommendation (approval required)",
     description:
-      "Turn one of the recommendations from get_optimization_recommendations into an approval request, carrying its evidence and before and after values into the review queue. Called by you, nothing changes until a person approves it. A person applying the same recommendation from the dashboard does not wait, because they are the approver.",
+      "Turn one of the recommendations from get_recommendations into an approval request, carrying its evidence and before and after values into the review queue. Called by you, nothing changes until a person approves it. A person applying the same recommendation from the dashboard does not wait, because they are the approver.",
     kind: "write",
     requiresApproval: true,
     inputSchema: {
@@ -205,7 +206,7 @@ export const WRITE_TOOLS: ToolContract[] = [
         recommendationId: {
           type: "string",
           description:
-            "Identifier from get_optimization_recommendations. Call that tool first, because not every recommendation is available at all times.",
+            "Identifier from get_recommendations. Call that tool first, because not every recommendation is available at all times.",
           enum: RECOMMENDATION_IDS,
         },
       },
