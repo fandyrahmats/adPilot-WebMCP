@@ -23,7 +23,16 @@ const themeScript = `try{var t=localStorage.getItem("adpilot-theme");var d=t?t==
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      // The inline script below sets the "dark" class before React hydrates,
+      // based on localStorage/matchMedia the server cannot see. That is an
+      // intentional, expected mismatch for flash-free dark mode, so this
+      // element's attributes are exempted from the hydration check instead
+      // of silencing hydration warnings globally.
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
